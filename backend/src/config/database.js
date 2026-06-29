@@ -1,44 +1,37 @@
-const oracledb = require('oracledb');
+const mysql = require('mysql2/promise');
 require('dotenv').config();
 
-let poolCreated = false;
+let pool;
 
 async function initPool() {
-  if (poolCreated) return;
+  if (pool) return;
 
-  // Define o diretório do wallet/tnsnames antes de qualquer conexão
-  process.env.TNS_ADMIN = process.env.TNS_ADMIN || process.env.ORACLE_WALLET_PATH;
-
-  await oracledb.createPool({
-    user: process.env.DB_USER,
+  pool = mysql.createPool({
+    host:     process.env.DB_HOST || 'localhost',
+    port:     process.env.DB_PORT || 3306,
+    user:     process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    connectionString: process.env.DB_CONNECTION_STRING,
-    walletLocation: process.env.TNS_ADMIN,
-    walletPassword: process.env.DB_WALLET_PASSWORD || '',
-    poolMin: 2,
-    poolMax: 10,
-    poolIncrement: 1
+    database: process.env.DB_NAME,
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    timezone: '-03:00'
   });
 
-  poolCreated = true;
-  console.log('✅ Pool de conexões Oracle criado!');
+  const conn = await pool.getConnection();
+  console.log('✅ Conexão com MySQL estabelecida!');
+  conn.release();
+}
+
+async function execute(sql, binds = []) {
+  if (!pool) await initPool();
+  const [rows] = await pool.execute(sql, binds);
+  return { rows };
 }
 
 async function getConnection() {
-  if (!poolCreated) await initPool();
-  return await oracledb.getConnection();
+  if (!pool) await initPool();
+  return await pool.getConnection();
 }
 
-async function execute(sql, binds = [], opts = {}) {
-  let conn;
-  try {
-    conn = await getConnection();
-    const options = { outFormat: oracledb.OUT_FORMAT_OBJECT, autoCommit: true, ...opts };
-    const result = await conn.execute(sql, binds, options);
-    return result;
-  } finally {
-    if (conn) await conn.close();
-  }
-}
-
-module.exports = { initPool, getConnection, execute };
+module.exports = { initPool, execute, getConnection };

@@ -4,19 +4,18 @@ const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
 const { execute } = require('../config/database');
 
-// Listar clientes (admin)
 router.get('/', auth, admin, async (req, res) => {
   try {
-    const result = await execute(
-      `SELECT U.ID, U.NAME, U.EMAIL, U.COMPANY, U.STATUS, U.CREATED_AT,
-              P.NAME AS PLAN_NAME
-       FROM DBGUARD_USERS U
-       LEFT JOIN DBGUARD_SUBSCRIPTIONS S ON S.USER_ID = U.ID AND S.STATUS = 'active'
-       LEFT JOIN DBGUARD_PLANS P ON P.ID = S.PLAN_ID
-       WHERE U.ROLE = 'client'
-       ORDER BY U.CREATED_AT DESC`
+    const { rows } = await execute(
+      `SELECT u.id, u.name, u.email, u.company, u.status, u.created_at,
+              p.name AS plan_name
+       FROM dbguard_users u
+       LEFT JOIN dbguard_subscriptions s ON s.user_id = u.id AND s.status = 'active'
+       LEFT JOIN dbguard_plans p ON p.id = s.plan_id
+       WHERE u.role = 'client'
+       ORDER BY u.created_at DESC`
     );
-    res.json(result.rows);
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ error: 'Erro interno' });
   }

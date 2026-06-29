@@ -6,22 +6,22 @@ const { execute } = require('../config/database');
 router.get('/summary', auth, async (req, res) => {
   const userId = req.user.id;
   const isAdmin = req.user.role === 'admin';
-  const filter = isAdmin ? '1=1' : 'USER_ID = :userId';
-  const binds = isAdmin ? {} : { userId };
+  const filter = isAdmin ? '1=1' : 'user_id = ?';
+  const binds = isAdmin ? [] : [userId];
 
   try {
     const [servers, jobs, alerts, storage] = await Promise.all([
-      execute(`SELECT COUNT(*) AS TOTAL, SUM(CASE WHEN STATUS='online' THEN 1 ELSE 0 END) AS ONLINE FROM DBGUARD_SERVERS WHERE ${filter}`, binds),
-      execute(`SELECT COUNT(*) AS TOTAL, SUM(CASE WHEN STATUS='success' THEN 1 ELSE 0 END) AS SUCCESS, SUM(CASE WHEN STATUS='failed' THEN 1 ELSE 0 END) AS FAILED FROM DBGUARD_BACKUP_JOBS WHERE ${filter}`, binds),
-      execute(`SELECT COUNT(*) AS TOTAL, SUM(CASE WHEN IS_READ=0 THEN 1 ELSE 0 END) AS UNREAD FROM DBGUARD_ALERTS WHERE ${filter}`, binds),
-      execute(`SELECT NVL(SUM(FILE_SIZE_MB),0) AS TOTAL_MB FROM DBGUARD_BACKUP_JOBS WHERE STATUS='success' AND ${filter}`, binds)
+      execute(`SELECT COUNT(*) AS total, SUM(CASE WHEN status='online' THEN 1 ELSE 0 END) AS online FROM dbguard_servers WHERE ${filter}`, binds),
+      execute(`SELECT COUNT(*) AS total, SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) AS success, SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) AS failed FROM dbguard_backup_jobs WHERE ${filter}`, binds),
+      execute(`SELECT COUNT(*) AS total, SUM(CASE WHEN is_read=0 THEN 1 ELSE 0 END) AS unread FROM dbguard_alerts WHERE ${filter}`, binds),
+      execute(`SELECT COALESCE(SUM(file_size_mb),0) AS total_mb FROM dbguard_backup_jobs WHERE status='success' AND ${filter}`, binds)
     ]);
 
     res.json({
       servers: servers.rows[0],
       jobs: jobs.rows[0],
       alerts: alerts.rows[0],
-      storageUsedMB: storage.rows[0].TOTAL_MB
+      storageUsedMB: storage.rows[0].total_mb
     });
   } catch (err) {
     console.error(err);
@@ -29,26 +29,24 @@ router.get('/summary', auth, async (req, res) => {
   }
 });
 
-// Últimos 30 dias de backups para gráfico
 router.get('/chart', auth, async (req, res) => {
-  const userId = req.user.id;
   const isAdmin = req.user.role === 'admin';
-  const filter = isAdmin ? '1=1' : 'USER_ID = :userId';
-  const binds = isAdmin ? {} : { userId };
+  const filter = isAdmin ? '1=1' : 'user_id = ?';
+  const binds = isAdmin ? [] : [req.user.id];
 
   try {
-    const result = await execute(
-      `SELECT TRUNC(CREATED_AT) AS DAY,
+    const { rows } = await execute(
+      `SELECT DATE(created_at) AS DAY,
               COUNT(*) AS TOTAL,
-              SUM(CASE WHEN STATUS='success' THEN 1 ELSE 0 END) AS SUCCESS,
-              SUM(CASE WHEN STATUS='failed'  THEN 1 ELSE 0 END) AS FAILED
-       FROM DBGUARD_BACKUP_JOBS
-       WHERE CREATED_AT >= SYSDATE - 30 AND ${filter}
-       GROUP BY TRUNC(CREATED_AT)
-       ORDER BY TRUNC(CREATED_AT)`,
+              SUM(CASE WHEN status='success' THEN 1 ELSE 0 END) AS SUCCESS,
+              SUM(CASE WHEN status='failed'  THEN 1 ELSE 0 END) AS FAILED
+       FROM dbguard_backup_jobs
+       WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND ${filter}
+       GROUP BY DATE(created_at)
+       ORDER BY DATE(created_at)`,
       binds
     );
-    res.json(result.rows);
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ error: 'Erro interno' });
   }

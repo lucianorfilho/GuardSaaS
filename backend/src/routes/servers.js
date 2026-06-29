@@ -5,21 +5,19 @@ const { execute } = require('../config/database');
 
 router.get('/', auth, async (req, res) => {
   const isAdmin = req.user.role === 'admin';
-  const filter = isAdmin ? '1=1' : 'USER_ID = :userId';
-  const binds = isAdmin ? {} : { userId: req.user.id };
+  const filter = isAdmin ? '1=1' : 'user_id = ?';
+  const binds = isAdmin ? [] : [req.user.id];
 
   try {
-    const result = await execute(
-      `SELECT ID, NAME, HOSTNAME, IP_ADDRESS, OS_TYPE,
-              AGENT_VERSION, STATUS, LAST_SEEN_AT, CREATED_AT
-       FROM ADMIN.DBGUARD_SERVERS
-       WHERE ${filter}
-       ORDER BY CREATED_AT DESC`,
+    const { rows } = await execute(
+      `SELECT id, name, hostname, ip_address, os_type,
+              agent_version, status, last_seen_at, created_at
+       FROM dbguard_servers WHERE ${filter}
+       ORDER BY created_at DESC`,
       binds
     );
-    res.json(result.rows);
+    res.json(rows);
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: 'Erro interno' });
   }
 });
