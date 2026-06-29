@@ -8,11 +8,7 @@ const { initPool } = require('./config/database');
 const app = express();
 
 app.use(helmet());
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(cors({ origin: '*', methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'], allowedHeaders: ['Content-Type','Authorization'] }));
 app.use(morgan('dev'));
 app.use(express.json());
 
@@ -22,6 +18,7 @@ app.use('/api/backups',   require('./routes/backups'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/alerts',    require('./routes/alerts'));
 app.use('/api/servers',   require('./routes/servers'));
+app.use('/api/schedules', require('./routes/schedules'));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', app: process.env.APP_NAME });
