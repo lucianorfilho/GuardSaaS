@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Server, Archive, Bell, Users, LogOut, Menu, Shield, Clock } from 'lucide-react';
+import { LayoutDashboard, Server, Archive, Bell, Users, LogOut, Menu, Shield, Clock, Download } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -24,14 +24,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/login');
   }
 
-  const navItems = [
+  const clientNav = [
     { href: '/dashboard',  label: 'Dashboard',    icon: LayoutDashboard },
     { href: '/servers',    label: 'Servidores',   icon: Server },
     { href: '/schedules',  label: 'Agendamentos', icon: Clock },
     { href: '/backups',    label: 'Backups',       icon: Archive },
     { href: '/alerts',     label: 'Alertas',       icon: Bell },
-    ...(user?.role === 'admin' ? [{ href: '/admin', label: 'Admin', icon: Users }] : []),
+    { href: '/download',   label: 'Download Agente', icon: Download },
   ];
+
+  const adminNav = [
+    { href: '/dashboard',  label: 'Dashboard',    icon: LayoutDashboard },
+    { href: '/servers',    label: 'Servidores',   icon: Server },
+    { href: '/backups',    label: 'Backups',       icon: Archive },
+    { href: '/alerts',     label: 'Alertas',       icon: Bell },
+    { href: '/admin',      label: 'Admin',         icon: Users },
+  ];
+
+  const navItems = user?.role === 'admin' ? adminNav : clientNav;
 
   const Sidebar = () => (
     <div className="flex flex-col h-full">
@@ -43,7 +53,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1">
         {navItems.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href;
+          const active = pathname === href || pathname.startsWith(href + '/');
           return (
             <Link key={href} href={href} onClick={() => setSidebarOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
