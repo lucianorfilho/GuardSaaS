@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Users, RefreshCw, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Users, RefreshCw, CheckCircle, XCircle, Clock, ChevronRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { formatDate, statusBg } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 
 export default function AdminPage() {
+  const router = useRouter();
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -25,39 +27,31 @@ export default function AdminPage() {
 
   useEffect(() => { load(); }, []);
 
-  async function approve(id: number) {
+  async function approve(e: React.MouseEvent, id: number) {
+    e.stopPropagation();
     setActing(id);
     try {
       await api.post(`/api/clients/${id}/approve`);
       await load();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setActing(null);
-    }
+    } finally { setActing(null); }
   }
 
-  async function suspend(id: number) {
+  async function suspend(e: React.MouseEvent, id: number) {
+    e.stopPropagation();
     setActing(id);
     try {
       await api.post(`/api/clients/${id}/suspend`);
       await load();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setActing(null);
-    }
+    } finally { setActing(null); }
   }
 
   const filtered = filter === 'all' ? clients : clients.filter(c => c.status === filter);
-
-  const pending  = clients.filter(c => c.status === 'inactive').length;
-  const active   = clients.filter(c => c.status === 'active').length;
+  const pending   = clients.filter(c => c.status === 'inactive').length;
+  const active    = clients.filter(c => c.status === 'active').length;
   const suspended = clients.filter(c => c.status === 'suspended').length;
 
   return (
     <div className="space-y-6">
-
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Administração</h1>
@@ -69,7 +63,6 @@ export default function AdminPage() {
         </button>
       </div>
 
-      {/* Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-gray-900 border border-yellow-500/20 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-2">
@@ -94,12 +87,11 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Filtros */}
       <div className="flex gap-2 flex-wrap">
         {[
-          { key: 'all',       label: 'Todos' },
-          { key: 'inactive',  label: 'Pendentes' },
-          { key: 'active',    label: 'Ativos' },
+          { key: 'all', label: 'Todos' },
+          { key: 'inactive', label: 'Pendentes' },
+          { key: 'active', label: 'Ativos' },
           { key: 'suspended', label: 'Suspensos' },
         ].map(f => (
           <button key={f.key} onClick={() => setFilter(f.key)}
@@ -109,8 +101,7 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {/* Tabela */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center h-48">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -121,72 +112,58 @@ export default function AdminPage() {
             <p className="text-sm">Nenhum cliente encontrado</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-gray-500 border-b border-gray-800">
-                  <th className="text-left pb-3 font-medium">Cliente</th>
-                  <th className="text-left pb-3 font-medium">Empresa</th>
-                  <th className="text-left pb-3 font-medium">Servidores</th>
-                  <th className="text-left pb-3 font-medium">Backups</th>
-                  <th className="text-left pb-3 font-medium">Status</th>
-                  <th className="text-left pb-3 font-medium">Cadastro</th>
-                  <th className="text-left pb-3 font-medium">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-800">
-                {filtered.map((client: any) => (
-                  <tr key={client.id} className="hover:bg-gray-800/50 transition">
-                    <td className="py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                          {client.name?.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-white font-medium">{client.name}</p>
-                          <p className="text-gray-500 text-xs">{client.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 text-gray-400">{client.company ?? '—'}</td>
-                    <td className="py-3 text-gray-400">{client.server_count ?? 0}</td>
-                    <td className="py-3 text-gray-400">{client.backup_count ?? 0}</td>
-                    <td className="py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        client.status === 'active'    ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
-                        client.status === 'inactive'  ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' :
-                        'bg-red-500/10 text-red-400 border border-red-500/20'
-                      }`}>
-                        {client.status === 'active' ? 'Ativo' : client.status === 'inactive' ? 'Pendente' : 'Suspenso'}
-                      </span>
-                    </td>
-                    <td className="py-3 text-gray-400">{formatDate(client.created_at)}</td>
-                    <td className="py-3">
-                      <div className="flex gap-2">
-                        {client.status === 'inactive' && (
-                          <button onClick={() => approve(client.id)} disabled={acting === client.id}
-                            className="px-3 py-1 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-xs rounded-lg transition">
-                            {acting === client.id ? '...' : 'Aprovar'}
-                          </button>
-                        )}
-                        {client.status === 'active' && (
-                          <button onClick={() => suspend(client.id)} disabled={acting === client.id}
-                            className="px-3 py-1 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-xs rounded-lg transition">
-                            {acting === client.id ? '...' : 'Suspender'}
-                          </button>
-                        )}
-                        {client.status === 'suspended' && (
-                          <button onClick={() => approve(client.id)} disabled={acting === client.id}
-                            className="px-3 py-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs rounded-lg transition">
-                            {acting === client.id ? '...' : 'Reativar'}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="divide-y divide-gray-800">
+            {filtered.map((client: any) => (
+              <div key={client.id}
+                onClick={() => router.push(`/admin/${client.id}`)}
+                className="flex items-center gap-4 p-4 hover:bg-gray-800/50 transition cursor-pointer">
+                <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold flex-shrink-0">
+                  {client.name?.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium">{client.name}</p>
+                  <div className="flex items-center gap-3 mt-0.5">
+                    <p className="text-gray-500 text-xs">{client.email}</p>
+                    {client.phone && <p className="text-gray-600 text-xs">{client.phone}</p>}
+                    {client.company && <p className="text-gray-600 text-xs">{client.company}</p>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-xs text-gray-500">{client.server_count ?? 0} servidores</p>
+                    <p className="text-xs text-gray-600">{formatDate(client.created_at)}</p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
+                    client.status === 'active' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
+                    client.status === 'inactive' ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' :
+                    'bg-red-500/10 text-red-400 border border-red-500/20'
+                  }`}>
+                    {client.status === 'active' ? 'Ativo' : client.status === 'inactive' ? 'Pendente' : 'Suspenso'}
+                  </span>
+                  <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                    {client.status === 'inactive' && (
+                      <button onClick={e => approve(e, client.id)} disabled={acting === client.id}
+                        className="px-3 py-1 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-xs rounded-lg transition">
+                        {acting === client.id ? '...' : 'Aprovar'}
+                      </button>
+                    )}
+                    {client.status === 'active' && (
+                      <button onClick={e => suspend(e, client.id)} disabled={acting === client.id}
+                        className="px-3 py-1 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-xs rounded-lg transition">
+                        {acting === client.id ? '...' : 'Suspender'}
+                      </button>
+                    )}
+                    {client.status === 'suspended' && (
+                      <button onClick={e => approve(e, client.id)} disabled={acting === client.id}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs rounded-lg transition">
+                        {acting === client.id ? '...' : 'Reativar'}
+                      </button>
+                    )}
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-600" />
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

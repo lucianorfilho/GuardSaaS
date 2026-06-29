@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import api from '@/lib/api';
 
 export default function LoginPage() {
@@ -52,8 +53,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 mb-4">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,47 +63,42 @@ export default function LoginPage() {
           <p className="text-gray-400 mt-1">Gerenciamento de Backups na Nuvem</p>
         </div>
 
-        {/* Tabs */}
         <div className="flex bg-gray-900 rounded-xl p-1 mb-6 border border-gray-800">
-          <button
-            onClick={() => { setMode('login'); setError(''); setSuccess(''); }}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${mode === 'login' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
-          >
+          <button onClick={() => { setMode('login'); setError(''); setSuccess(''); }}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${mode === 'login' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>
             Entrar
           </button>
-          <button
-            onClick={() => { setMode('register'); setError(''); setSuccess(''); }}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${mode === 'register' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}
-          >
+          <button onClick={() => { setMode('register'); setError(''); setSuccess(''); }}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${mode === 'register' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'}`}>
             Criar Conta
           </button>
         </div>
 
-        {/* Card */}
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8">
-
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg px-4 py-3 mb-6 text-sm">
-              {error}
-            </div>
+            <div className="bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg px-4 py-3 mb-6 text-sm">{error}</div>
           )}
-
           {success && (
-            <div className="bg-green-500/10 border border-green-500/20 text-green-400 rounded-lg px-4 py-3 mb-6 text-sm">
-              {success}
-            </div>
+            <div className="bg-green-500/10 border border-green-500/20 text-green-400 rounded-lg px-4 py-3 mb-6 text-sm">{success}</div>
           )}
 
           {mode === 'login' ? (
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1.5">E-mail</label>
-                <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="seu@email.com" required
+                <input type="email" name="email" value={form.email} onChange={handleChange}
+                  placeholder="seu@email.com" required
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1.5">Senha</label>
-                <input type="password" name="password" value={form.password} onChange={handleChange} placeholder="••••••••" required
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-sm font-medium text-gray-400">Senha</label>
+                  <Link href="/forgot-password" className="text-xs text-blue-400 hover:text-blue-300 transition">
+                    Esqueceu a senha?
+                  </Link>
+                </div>
+                <input type="password" name="password" value={form.password} onChange={handleChange}
+                  placeholder="••••••••" required
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition" />
               </div>
               <button type="submit" disabled={loading}
@@ -116,40 +110,44 @@ export default function LoginPage() {
             <form onSubmit={handleRegister} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1.5">Nome completo</label>
-                <input type="text" name="name" value={form.name} onChange={handleChange} placeholder="Seu nome" required
+                <input type="text" name="name" value={form.name} onChange={handleChange}
+                  placeholder="Seu nome" required
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1.5">E-mail</label>
-                <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="seu@email.com" required
+                <input type="email" name="email" value={form.email} onChange={handleChange}
+                  placeholder="seu@email.com" required
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1.5">Senha</label>
-                <input type="password" name="password" value={form.password} onChange={handleChange} placeholder="Mínimo 8 caracteres" required minLength={8}
+                <input type="password" name="password" value={form.password} onChange={handleChange}
+                  placeholder="Mínimo 8 caracteres" required minLength={8}
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1.5">Empresa</label>
-                <input type="text" name="company" value={form.company} onChange={handleChange} placeholder="Nome da sua empresa"
+                <input type="text" name="company" value={form.company} onChange={handleChange}
+                  placeholder="Nome da sua empresa"
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1.5">Telefone</label>
-                <input type="text" name="phone" value={form.phone} onChange={handleChange} placeholder="(00) 00000-0000"
+                <input type="text" name="phone" value={form.phone} onChange={handleChange}
+                  placeholder="(00) 00000-0000"
                   className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition" />
               </div>
               <button type="submit" disabled={loading}
                 className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-semibold rounded-lg px-4 py-2.5 transition mt-2">
                 {loading ? 'Cadastrando...' : 'Criar Conta Grátis'}
               </button>
-              <p className="text-xs text-gray-500 text-center mt-2">
+              <p className="text-xs text-gray-500 text-center">
                 Após o cadastro, aguarde a aprovação do administrador.
               </p>
             </form>
           )}
         </div>
-
         <p className="text-center text-gray-600 text-sm mt-6">DBGuard © {new Date().getFullYear()}</p>
       </div>
     </div>

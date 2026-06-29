@@ -13,6 +13,7 @@ app.use(morgan('dev'));
 app.use(express.json());
 
 app.use('/api/auth',      require('./routes/auth'));
+app.use('/api/password',  require('./routes/password'));
 app.use('/api/clients',   require('./routes/clients'));
 app.use('/api/backups',   require('./routes/backups'));
 app.use('/api/dashboard', require('./routes/dashboard'));
@@ -31,6 +32,6 @@ initPool().then(() => {
     console.log(`DBGuard API rodando na porta ${PORT}`);
   });
 }).catch(err => {
-  console.error('Falha ao iniciar pool Oracle:', err);
+  console.error('Falha ao iniciar:', err);
   process.exit(1);
 });
