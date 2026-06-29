@@ -5,9 +5,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatBytes(mb: number): string {
-  if (mb < 1024) return `${mb.toFixed(1)} MB`;
-  return `${(mb / 1024).toFixed(2)} GB`;
+export function formatBytes(mb: any): string {
+  const n = parseFloat(mb) || 0;
+  if (n < 1024) return `${n.toFixed(1)} MB`;
+  return `${(n / 1024).toFixed(2)} GB`;
 }
 
 export function formatDate(dateStr: string): string {

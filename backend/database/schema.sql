@@ -1,12 +1,7 @@
 -- DBGuard - Schema MySQL
 -- Execute como root: mysql -u root -p < schema.sql
 
-CREATE DATABASE IF NOT EXISTS dbguard CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE dbguard;
-
-CREATE USER IF NOT EXISTS 'dbguard'@'localhost' IDENTIFIED BY 'TROQUE_ESTA_SENHA';
-GRANT ALL PRIVILEGES ON dbguard.* TO 'dbguard'@'localhost';
-FLUSH PRIVILEGES;
+use dbguard;
 
 -- Usuários
 CREATE TABLE IF NOT EXISTS dbguard_users (

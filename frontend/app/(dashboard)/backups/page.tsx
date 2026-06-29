@@ -25,7 +25,7 @@ export default function BackupsPage() {
 
   useEffect(() => { load(); }, []);
 
-  const filtered = filter === 'all' ? jobs : jobs.filter(j => j.STATUS?.toLowerCase() === filter);
+  const filtered = filter === 'all' ? jobs : jobs.filter(j => j.status?.toLowerCase() === filter);
 
   const filters = [
     { key: 'all',     label: 'Todos' },
@@ -99,23 +99,23 @@ export default function BackupsPage() {
                 {filtered.map((job: any) => (
                   <tr key={job.ID} className="hover:bg-gray-800/50 transition">
                     <td className="py-3">
-                      <p className="text-white font-medium">{job.JOB_NAME}</p>
-                      {job.FILE_NAME && (
-                        <p className="text-gray-500 text-xs mt-0.5 truncate max-w-[200px]">{job.FILE_NAME}</p>
+                      <p className="text-white font-medium">{job.job_name}</p>
+                      {job.file_name && (
+                        <p className="text-gray-500 text-xs mt-0.5 truncate max-w-[200px]">{job.file_name}</p>
                       )}
                     </td>
-                    <td className="py-3 text-gray-400">{job.SERVER_NAME ?? '—'}</td>
-                    <td className="py-3 text-gray-400 capitalize">{job.BACKUP_TYPE}</td>
+                    <td className="py-3 text-gray-400">{job.server_name ?? '—'}</td>
+                    <td className="py-3 text-gray-400 capitalize">{job.backup_type}</td>
                     <td className="py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusBg(job.STATUS?.toLowerCase())}`}>
-                        {job.STATUS}
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusBg(job.status?.toLowerCase())}`}>
+                        {job.status}
                       </span>
                     </td>
                     <td className="py-3 text-gray-400">
-                      {job.FILE_SIZE_MB ? formatBytes(job.FILE_SIZE_MB) : '—'}
+                      {job.file_size_mb ? formatBytes(job.file_size_mb) : '—'}
                     </td>
-                    <td className="py-3 text-gray-400">{formatDate(job.STARTED_AT)}</td>
-                    <td className="py-3 text-gray-400">{formatDate(job.FINISHED_AT)}</td>
+                    <td className="py-3 text-gray-400">{formatDate(job.started_at)}</td>
+                    <td className="py-3 text-gray-400">{formatDate(job.finished_at)}</td>
                   </tr>
                 ))}
               </tbody>
