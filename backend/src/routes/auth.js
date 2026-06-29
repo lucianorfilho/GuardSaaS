@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { execute } = require('../config/database');
+const { notifyNewClient } = require('../config/email');
 
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
@@ -20,8 +21,11 @@ router.post('/login', async (req, res) => {
 
     const user = rows[0];
 
-    if (user.status !== 'active')
-      return res.status(403).json({ error: 'Conta inativa ou suspensa' });
+    if (user.status === 'inactive')
+      return res.status(403).json({ error: 'Conta aguardando aprovação do administrador' });
+
+    if (user.status === 'suspended')
+      return res.status(403).json({ error: 'Conta suspensa. Entre em contato com o suporte' });
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid)
@@ -54,11 +58,15 @@ router.post('/register', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     await execute(
-      'INSERT INTO dbguard_users (name, email, password_hash, phone, company) VALUES (?, ?, ?, ?, ?)',
+      `INSERT INTO dbguard_users (name, email, password_hash, phone, company, status, role)
+       VALUES (?, ?, ?, ?, ?, 'inactive', 'client')`,
       [name, email, hash, phone || null, company || null]
     );
 
-    res.status(201).json({ message: 'Conta criada com sucesso' });
+    // Notificar admin
+    notifyNewClient({ name, email, phone, company });
+
+    res.status(201).json({ message: 'Cadastro realizado! Aguarde a aprovação do administrador.' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erro interno' });
