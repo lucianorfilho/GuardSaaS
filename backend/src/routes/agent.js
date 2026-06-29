@@ -204,3 +204,28 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 });
 
 module.exports = router;
+
+// Buscar jobs pendentes para executar
+router.get('/jobs/:token', async (req, res) => {
+  try {
+    const { rows: servers } = await execute(
+      'SELECT id, user_id FROM dbguard_servers WHERE agent_token = ?',
+      [req.params.token]
+    );
+    if (!servers.length) return res.status(401).json({ error: 'Token inválido' });
+
+    const { rows: jobs } = await execute(
+      `SELECT j.id, j.job_name, sc.source_path, sc.destination, sc.retention_days
+       FROM dbguard_backup_jobs j
+       JOIN dbguard_schedules sc ON sc.name = j.job_name AND sc.server_id = ?
+       WHERE j.server_id = ? AND j.status IN ('pending', 'running')
+       ORDER BY j.created_at DESC LIMIT 5`,
+      [servers[0].id, servers[0].id]
+    );
+
+    res.json({ jobs });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});

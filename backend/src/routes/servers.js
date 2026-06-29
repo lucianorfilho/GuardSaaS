@@ -11,7 +11,7 @@ router.get('/', auth, async (req, res) => {
 
   try {
     const { rows } = await execute(
-      `SELECT id, name, hostname, ip_address, os_type,
+      `SELECT id, name, hostname, ip_address, os_type, timezone,
               agent_version, agent_token, status, last_seen_at, created_at
        FROM dbguard_servers WHERE ${filter}
        ORDER BY created_at DESC`,
@@ -24,20 +24,21 @@ router.get('/', auth, async (req, res) => {
 });
 
 router.post('/', auth, async (req, res) => {
-  const { name, hostname, ip_address, os_type } = req.body;
+  const { name, hostname, ip_address, os_type, timezone } = req.body;
   if (!name || !os_type)
     return res.status(400).json({ error: 'Nome e sistema operacional obrigatórios' });
 
   try {
     const agent_token = crypto.randomBytes(32).toString('hex');
     await execute(
-      `INSERT INTO dbguard_servers (user_id, name, hostname, ip_address, os_type, agent_token, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'offline')`,
-      [req.user.id, name, hostname || null, ip_address || null, os_type, agent_token]
+      `INSERT INTO dbguard_servers (user_id, name, hostname, ip_address, os_type, timezone, agent_token, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'offline')`,
+      [req.user.id, name, hostname || null, ip_address || null, os_type,
+       timezone || 'America/Sao_Paulo', agent_token]
     );
 
     const { rows } = await execute(
-      `SELECT id, name, hostname, ip_address, os_type,
+      `SELECT id, name, hostname, ip_address, os_type, timezone,
               agent_version, agent_token, status, last_seen_at, created_at
        FROM dbguard_servers WHERE agent_token = ?`,
       [agent_token]
