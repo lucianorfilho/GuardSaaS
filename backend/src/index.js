@@ -20,6 +20,7 @@ app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/alerts',    require('./routes/alerts'));
 app.use('/api/servers',   require('./routes/servers'));
 app.use('/api/schedules', require('./routes/schedules'));
+app.use('/api/agent',     require('./routes/agent'));
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', app: process.env.APP_NAME });
@@ -28,6 +29,7 @@ app.get('/health', (req, res) => {
 const PORT = process.env.PORT || 4000;
 
 initPool().then(() => {
+  require('./scheduler');
   app.listen(PORT, () => {
     console.log(`DBGuard API rodando na porta ${PORT}`);
   });
