@@ -157,7 +157,7 @@ router.get('/download/:os', (req, res) => {
   const file = files[req.params.os];
   if (!file) return res.status(404).json({ error: 'OS não suportado' });
 
-  const filePath = path.join(__dirname, '../agents', file);
+  const filePath = path.join(__dirname, '../../agents', file);
   if (!fs.existsSync(filePath))
     return res.status(404).json({ error: 'Agente não disponível' });
 
