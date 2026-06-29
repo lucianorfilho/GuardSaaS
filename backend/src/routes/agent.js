@@ -4,6 +4,13 @@ const { execute } = require('../config/database');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const logger = require('../config/logger');
+const agentAudit = require('../middleware/agentAudit');
+const { agentLimiter } = require('../middleware/rateLimiter');
+
+// Aplicar rate limit e auditoria em todas as rotas do agente
+router.use(agentLimiter);
+router.use(agentAudit);
 
 const uploadStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -14,6 +21,20 @@ const uploadStorage = multer.diskStorage({
 });
 const upload = multer({ storage: uploadStorage });
 
+async function logAudit(server_id, user_id, event_type, ip_address, description, metadata) {
+  try {
+    await execute(
+      `INSERT INTO dbguard_audit_logs
+         (server_id, user_id, event_type, ip_address, description, metadata)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [server_id || null, user_id || null, event_type, ip_address,
+       description, metadata ? JSON.stringify(metadata) : null]
+    );
+  } catch (err) {
+    logger.error('Erro ao registrar audit log', { error: err.message });
+  }
+}
+
 // Heartbeat
 router.post('/heartbeat', async (req, res) => {
   const { token, agent_version, os_info } = req.body;
@@ -21,9 +42,12 @@ router.post('/heartbeat', async (req, res) => {
 
   try {
     const { rows } = await execute(
-      'SELECT id FROM dbguard_servers WHERE agent_token = ?', [token]
+      'SELECT id, user_id FROM dbguard_servers WHERE agent_token = ?', [token]
     );
-    if (!rows.length) return res.status(401).json({ error: 'Token inválido' });
+    if (!rows.length) {
+      logger.warn('Heartbeat com token inválido', { ip: req.ip, token: token.substring(0,8) });
+      return res.status(401).json({ error: 'Token inválido' });
+    }
 
     await execute(
       `UPDATE dbguard_servers
@@ -31,8 +55,13 @@ router.post('/heartbeat', async (req, res) => {
        WHERE agent_token = ?`,
       [agent_version || '1.0.0', token]
     );
+
+    await logAudit(rows[0].id, rows[0].user_id, 'heartbeat', req.ip,
+      `Agente online — v${agent_version}`, { os_info });
+
     res.json({ status: 'ok' });
   } catch (err) {
+    logger.error('Erro no heartbeat', { error: err.message });
     res.status(500).json({ error: 'Erro interno' });
   }
 });
@@ -44,7 +73,7 @@ router.post('/report', async (req, res) => {
 
   try {
     const { rows } = await execute(
-      'SELECT id FROM dbguard_servers WHERE agent_token = ?', [token]
+      'SELECT id, user_id FROM dbguard_servers WHERE agent_token = ?', [token]
     );
     if (!rows.length) return res.status(401).json({ error: 'Token inválido' });
 
@@ -53,8 +82,13 @@ router.post('/report', async (req, res) => {
        SET status = ?, file_name = ?, file_size_mb = ?,
            storage_path = ?, finished_at = NOW(), error_message = ?
        WHERE id = ?`,
-      [status, file_name || null, file_size_mb || null, storage_path || null, error_message || null, job_id]
+      [status, file_name || null, file_size_mb || null,
+       storage_path || null, error_message || null, job_id]
     );
+
+    await logAudit(rows[0].id, rows[0].user_id, `backup_${status}`, req.ip,
+      `Backup ${status}: ${file_name || 'sem nome'}`,
+      { job_id, file_size_mb, error_message });
 
     if (status === 'failed') {
       const { rows: jobs } = await execute(
@@ -64,14 +98,15 @@ router.post('/report', async (req, res) => {
         await execute(
           `INSERT INTO dbguard_alerts (user_id, job_id, type, severity, message)
            VALUES (?, ?, 'backup_failed', 'error', ?)`,
-          [jobs[0].user_id, job_id, `Backup falhou: ${jobs[0].job_name}. ${error_message || ''}`]
+          [jobs[0].user_id, job_id,
+           `Backup falhou: ${jobs[0].job_name}. ${error_message || ''}`]
         );
       }
     }
 
     res.json({ status: 'ok' });
   } catch (err) {
-    console.error(err);
+    logger.error('Erro no report', { error: err.message });
     res.status(500).json({ error: 'Erro interno' });
   }
 });
@@ -80,7 +115,7 @@ router.post('/report', async (req, res) => {
 router.get('/config/:token', async (req, res) => {
   try {
     const { rows } = await execute(
-      `SELECT s.id, s.name, s.os_type,
+      `SELECT s.id, s.name, s.os_type, s.user_id,
               sc.id AS schedule_id, sc.source_path, sc.destination,
               sc.retention_days, sc.frequency, sc.hour, sc.minute
        FROM dbguard_servers s
@@ -90,6 +125,9 @@ router.get('/config/:token', async (req, res) => {
     );
 
     if (!rows.length) return res.status(401).json({ error: 'Token inválido' });
+
+    await logAudit(rows[0].id, rows[0].user_id, 'config_fetch', req.ip,
+      'Agente buscou configurações', null);
 
     res.json({
       server: { id: rows[0].id, name: rows[0].name, os_type: rows[0].os_type },
@@ -110,19 +148,18 @@ router.get('/config/:token', async (req, res) => {
 
 // Download do agente
 router.get('/download/:os', (req, res) => {
-  const os = req.params.os;
   const files = {
     'linux-debian': 'dbguard-agent-debian.sh',
     'linux-redhat': 'dbguard-agent-redhat.sh',
     'windows':      'dbguard-agent-windows.ps1'
   };
 
-  const file = files[os];
+  const file = files[req.params.os];
   if (!file) return res.status(404).json({ error: 'OS não suportado' });
 
   const filePath = path.join(__dirname, '../agents', file);
   if (!fs.existsSync(filePath))
-    return res.status(404).json({ error: 'Agente não disponível ainda' });
+    return res.status(404).json({ error: 'Agente não disponível' });
 
   res.download(filePath);
 });
@@ -147,9 +184,21 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     const finalPath = path.join(clientDir, req.file.originalname);
     fs.renameSync(req.file.path, finalPath);
 
+    const fileSizeMB = req.file.size / (1024 * 1024);
+
+    await logAudit(rows[0].id, rows[0].user_id, 'backup_upload', req.ip,
+      `Upload recebido: ${req.file.originalname}`,
+      { file_name: req.file.originalname, size_mb: fileSizeMB.toFixed(2) });
+
+    logger.info('Backup recebido', {
+      server_id: rows[0].id,
+      file: req.file.originalname,
+      size_mb: fileSizeMB.toFixed(2)
+    });
+
     res.json({ storage_path: finalPath, message: 'Upload concluído' });
   } catch (err) {
-    console.error(err);
+    logger.error('Erro no upload', { error: err.message });
     res.status(500).json({ error: 'Erro interno' });
   }
 });
