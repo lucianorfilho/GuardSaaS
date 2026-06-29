@@ -66,14 +66,20 @@ export default function ServersPage() {
     setTimeout(() => setCopied(null), 2000);
   }
 
-  function getInstallCommand(server: any) {
-    const token = server.agent_token;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-    if (server.os_type === 'windows') {
-      return `Invoke-WebRequest -Uri "${apiUrl}/agent/download/windows" -OutFile dbguard-agent.exe; .\\dbguard-agent.exe --token ${token} --server ${apiUrl}`;
-    }
-    return `curl -fsSL ${apiUrl}/agent/install.sh | bash -s -- --token ${token} --server ${apiUrl}`;
+
+function getInstallCommand(server: any) {
+  const token = server.agent_token;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || window.location.origin;
+
+  if (server.os_type === 'windows') {
+    return `Invoke-WebRequest -Uri "${apiUrl}/api/agent/download/windows" -OutFile agent.ps1; .\\agent.ps1 -Token "${token}" -Server "${apiUrl}"`;
   }
+
+  const os = server.os_type === 'linux-redhat' ? 'linux-redhat' : 'linux-debian';
+  return `curl -fsSL ${apiUrl}/api/agent/download/${os} -o install.sh && bash install.sh --token ${token} --server ${apiUrl}`;
+}
+
+
 
   return (
     <div className="space-y-6">

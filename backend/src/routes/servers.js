@@ -1,11 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const admin = require('../middleware/admin');
 const { execute } = require('../config/database');
 const crypto = require('crypto');
 
-// Listar servidores do cliente
 router.get('/', auth, async (req, res) => {
   const isAdmin = req.user.role === 'admin';
   const filter = isAdmin ? '1=1' : 'user_id = ?';
@@ -14,7 +12,7 @@ router.get('/', auth, async (req, res) => {
   try {
     const { rows } = await execute(
       `SELECT id, name, hostname, ip_address, os_type,
-              agent_version, status, last_seen_at, created_at
+              agent_version, agent_token, status, last_seen_at, created_at
        FROM dbguard_servers WHERE ${filter}
        ORDER BY created_at DESC`,
       binds
@@ -25,7 +23,6 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// Cadastrar servidor
 router.post('/', auth, async (req, res) => {
   const { name, hostname, ip_address, os_type } = req.body;
   if (!name || !os_type)
@@ -40,7 +37,10 @@ router.post('/', auth, async (req, res) => {
     );
 
     const { rows } = await execute(
-      'SELECT * FROM dbguard_servers WHERE agent_token = ?', [agent_token]
+      `SELECT id, name, hostname, ip_address, os_type,
+              agent_version, agent_token, status, last_seen_at, created_at
+       FROM dbguard_servers WHERE agent_token = ?`,
+      [agent_token]
     );
 
     res.status(201).json(rows[0]);
@@ -50,7 +50,6 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// Deletar servidor
 router.delete('/:id', auth, async (req, res) => {
   try {
     await execute(
