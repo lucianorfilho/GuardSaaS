@@ -1,4 +1,4 @@
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const logger = require('../config/logger');
 
 const apiLimiter = rateLimit({
@@ -38,7 +38,7 @@ const agentLimiter = rateLimit({
   max: 30,
   keyGenerator: (req) => {
     const token = req.body?.token || req.params?.token;
-    return token ? token.substring(0, 16) : req.ip;
+    return token ? token.substring(0, 16) : ipKeyGenerator(req.ip);
   },
   message: { error: 'Muitas requisições do agente.' },
   handler: (req, res, next, options) => {
