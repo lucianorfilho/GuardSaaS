@@ -1,20 +1,14 @@
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const logger = require('../config/logger');
-
-function getIP(req) {
-  const ip = req.ip || req.connection?.remoteAddress || '';
-  return ip.replace(/^::ffff:/, '');
-}
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: getIP,
   message: { error: 'Muitas requisições. Tente novamente em 15 minutos.' },
   handler: (req, res, next, options) => {
-    logger.warn('Rate limit atingido', { ip: getIP(req), path: req.path });
+    logger.warn('Rate limit atingido', { ip: req.ip, path: req.path });
     res.status(429).json(options.message);
   }
 });
@@ -22,10 +16,9 @@ const apiLimiter = rateLimit({
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
-  keyGenerator: getIP,
   message: { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' },
   handler: (req, res, next, options) => {
-    logger.warn('Tentativas excessivas de login', { ip: getIP(req) });
+    logger.warn('Tentativas excessivas de login', { ip: req.ip });
     res.status(429).json(options.message);
   }
 });
@@ -33,10 +26,9 @@ const loginLimiter = rateLimit({
 const passwordLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
-  keyGenerator: getIP,
   message: { error: 'Muitas solicitações. Tente novamente em 1 hora.' },
   handler: (req, res, next, options) => {
-    logger.warn('Tentativas excessivas de recuperação', { ip: getIP(req) });
+    logger.warn('Tentativas excessivas de recuperação', { ip: req.ip });
     res.status(429).json(options.message);
   }
 });
@@ -46,11 +38,11 @@ const agentLimiter = rateLimit({
   max: 30,
   keyGenerator: (req) => {
     const token = req.body?.token || req.params?.token;
-    return token ? token.substring(0, 16) : getIP(req);
+    return token ? token.substring(0, 16) : ipKeyGenerator(req.ip);
   },
   message: { error: 'Muitas requisições do agente.' },
   handler: (req, res, next, options) => {
-    logger.warn('Rate limit agente', { ip: getIP(req) });
+    logger.warn('Rate limit agente', { ip: req.ip });
     res.status(429).json(options.message);
   }
 });
