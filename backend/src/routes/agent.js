@@ -229,3 +229,50 @@ router.get('/jobs/:token', async (req, res) => {
     res.status(500).json({ error: 'Erro interno' });
   }
 });
+
+// Sobrescrever rota de upload com verificação de quota
+router.post('/upload-checked', uploadTemp.single('file'), async (req, res) => {
+  const { token, job_id } = req.body;
+  if (!token) return res.status(400).json({ error: 'Token obrigatório' });
+
+  try {
+    const { rows } = await execute(
+      'SELECT id, user_id FROM dbguard_servers WHERE agent_token = ?', [token]
+    );
+    if (!rows.length) {
+      if (req.file) fs.unlinkSync(req.file.path);
+      return res.status(401).json({ error: 'Token inválido' });
+    }
+
+    const clientId   = rows[0].user_id;
+    const fileSizeMB = req.file.size / (1024 * 1024);
+    const { checkQuota, registerObject } = require('../services/storageQuota');
+
+    // Verificar quota
+    const quota = await checkQuota(clientId, fileSizeMB);
+    if (!quota.allowed) {
+      if (req.file) fs.unlinkSync(req.file.path);
+      return res.status(403).json({
+        error: quota.reason,
+        usage: quota.usage,
+        plan: quota.plan
+      });
+    }
+
+    const objectName = `client_${clientId}/${req.file.originalname}`;
+    const result     = await uploadToOCI(req.file.path, objectName);
+    fs.unlinkSync(req.file.path);
+
+    // Registrar no banco
+    await registerObject(clientId, objectName, req.file.originalname, result.sizeMB, job_id || null);
+
+    res.json({
+      storage_path: result.path,
+      size_mb:      result.sizeMB,
+      message:      'Upload para OCI concluído'
+    });
+  } catch (err) {
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    res.status(500).json({ error: 'Erro no upload: ' + err.message });
+  }
+});

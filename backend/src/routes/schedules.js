@@ -95,3 +95,42 @@ router.delete('/:id', auth, async (req, res) => {
 });
 
 module.exports = router;
+
+// Atualizar agendamento
+router.put('/:id', auth, async (req, res) => {
+  const {
+    name, source_path, destination,
+    frequency, weekday, monthday, hour, minute, retention_days
+  } = req.body;
+
+  if (!name || !source_path || hour === undefined)
+    return res.status(400).json({ error: 'Campos obrigatórios faltando' });
+
+  try {
+    const { rows } = await execute(
+      'SELECT id FROM dbguard_schedules WHERE id = ? AND user_id = ?',
+      [req.params.id, req.user.id]
+    );
+    if (!rows.length)
+      return res.status(404).json({ error: 'Agendamento não encontrado' });
+
+    await execute(
+      `UPDATE dbguard_schedules
+       SET name = ?, source_path = ?, destination = ?, frequency = ?,
+           weekday = ?, monthday = ?, hour = ?, minute = ?, retention_days = ?
+       WHERE id = ? AND user_id = ?`,
+      [
+        name, source_path, destination || 'local',
+        frequency || 'daily',
+        weekday ?? null, monthday ?? null,
+        hour, minute || 0, retention_days || 30,
+        req.params.id, req.user.id
+      ]
+    );
+
+    res.json({ message: 'Agendamento atualizado com sucesso' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
