@@ -151,15 +151,26 @@ router.post('/upload', uploadTemp.single('file'), async (req, res) => {
   if (!token) return res.status(400).json({ error: 'Token obrigatório' });
 
   try {
-    const { rows } = await execute(
+    const { rows: serverRows } = await execute(
       'SELECT id, user_id FROM dbguard_servers WHERE agent_token = ?', [token]
     );
-    if (!rows.length) {
+    if (!serverRows.length) {
       if (req.file) fs.unlinkSync(req.file.path);
       return res.status(401).json({ error: 'Token inválido' });
     }
 
-    const clientId   = rows[0].user_id;
+    const serverId   = serverRows[0].id;
+    const clientId   = serverRows[0].user_id;
+
+    // Verificar status da conta
+    const { rows: userRows } = await execute(
+      'SELECT status FROM dbguard_users WHERE id = ?', [clientId]
+    );
+    if (!userRows.length || userRows[0].status !== 'active') {
+      if (req.file) fs.unlinkSync(req.file.path);
+      return res.status(403).json({ error: 'Conta inativada. Verifique com o administrador.' });
+    }
+
     const fileSizeMB = req.file.size / (1024 * 1024);
 
     // Verificar quota
@@ -176,7 +187,7 @@ router.post('/upload', uploadTemp.single('file'), async (req, res) => {
     // Registrar no banco
     await registerObject(clientId, objectName, req.file.originalname, result.sizeMB, job_id || null);
 
-    await logAudit(rows[0].id, clientId, 'backup_upload', req.ip,
+    await logAudit(serverId, clientId, 'backup_upload', req.ip,
       `Upload OCI: ${req.file.originalname}`, { size_mb: result.sizeMB.toFixed(2) });
 
     res.json({ storage_path: result.path, size_mb: result.sizeMB, message: 'Upload OCI concluído' });

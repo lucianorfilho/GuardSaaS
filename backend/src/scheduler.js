@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const { DateTime } = require('luxon');
 const { execute } = require('./config/database');
+const { notifyPlanExpiring, notifyPlanExpired } = require('./config/email');
 require('dotenv').config();
 
 console.log('⏰ Scheduler iniciado');
@@ -65,5 +66,76 @@ async function triggerBackup(schedule) {
     console.error(`❌ Erro ao criar job: ${err.message}`);
   }
 }
+
+// Verificar vencimento de planos — roda todos os dias à meia-noite
+cron.schedule('0 0 * * *', async () => {
+  try {
+    console.log('🔔 Verificando vencimento de planos...');
+    const now = DateTime.now().toJSDate();
+    const threeDaysFromNow = DateTime.now().plus({ days: 3 }).toJSDate();
+    const threeDaysAgo = DateTime.now().minus({ days: 3 }).toJSDate();
+
+    // 1. Avisar clientes que plano vence em 3 dias
+    const { rows: expiringSoon } = await execute(
+      `SELECT s.id, s.user_id, s.expires_at, u.name, u.email, p.name AS plan_name
+       FROM dbguard_subscriptions s
+       JOIN dbguard_users u ON u.id = s.user_id
+       JOIN dbguard_plans p ON p.id = s.plan_id
+       WHERE s.status = 'active'
+       AND s.expires_at IS NOT NULL
+       AND DATE(s.expires_at) = DATE(?)
+       AND s.warned_at IS NULL`,
+      [threeDaysFromNow]
+    );
+
+    for (const sub of expiringSoon) {
+      try {
+        // Enviar email de aviso
+        if (notifyPlanExpiring) {
+          notifyPlanExpiring({ email: sub.email, name: sub.name, plan: sub.plan_name, expires_at: sub.expires_at });
+        }
+        // Marcar como avisado
+        await execute('UPDATE dbguard_subscriptions SET warned_at = NOW() WHERE id = ?', [sub.id]);
+        console.log(`📧 Aviso de vencimento enviado para ${sub.email}`);
+      } catch (err) {
+        console.error(`Erro ao notificar ${sub.email}:`, err.message);
+      }
+    }
+
+    // 2. Inativar contas que venceram há 3+ dias (período de graça expirou)
+    const { rows: expiredAccounts } = await execute(
+      `SELECT s.id, s.user_id, u.name, u.email
+       FROM dbguard_subscriptions s
+       JOIN dbguard_users u ON u.id = s.user_id
+       WHERE s.status = 'active'
+       AND s.expires_at IS NOT NULL
+       AND s.expires_at <= ?
+       AND (s.grace_until IS NULL OR s.grace_until <= ?)`,
+      [threeDaysAgo, now]
+    );
+
+    for (const sub of expiredAccounts) {
+      try {
+        // Inativar conta
+        await execute("UPDATE dbguard_users SET status = 'inactive' WHERE id = ?", [sub.user_id]);
+        // Marcar assinatura como expirada
+        await execute("UPDATE dbguard_subscriptions SET status = 'expired' WHERE id = ?", [sub.id]);
+
+        // Enviar email notificando
+        if (notifyPlanExpired) {
+          notifyPlanExpired({ email: sub.email, name: sub.name });
+        }
+
+        console.log(`🚫 Conta inativada por vencimento: ${sub.email}`);
+      } catch (err) {
+        console.error(`Erro ao inativar ${sub.email}:`, err.message);
+      }
+    }
+
+    console.log('✅ Verificação de vencimento concluída');
+  } catch (err) {
+    console.error('Erro no scheduler de vencimento:', err.message);
+  }
+});
 
 module.exports = { triggerBackup };

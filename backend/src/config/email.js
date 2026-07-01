@@ -68,7 +68,7 @@ async function notifyClientApproved(client) {
             Acessar DBGuard
           </a>
           <p style="color:#94a3b8;margin-top:20px;font-size:14px">
-            Você possui <strong>10GB de storage gratuito</strong> para começar.
+            Você possui <strong>2GB de storage gratuito</strong> para começar.
           </p>
         </div>
       </div>
@@ -76,4 +76,55 @@ async function notifyClientApproved(client) {
   });
 }
 
-module.exports = { sendEmail, notifyNewClient, notifyClientApproved };
+async function notifyPlanExpiring(data) {
+  const { email, name, plan, expires_at } = data;
+  const expiresDate = new Date(expires_at).toLocaleDateString('pt-BR');
+
+  await sendEmail({
+    to: email,
+    subject: '⏰ DBGuard — Seu plano vence em 3 dias',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <div style="background:#ea580c;padding:20px;border-radius:8px 8px 0 0">
+          <h1 style="color:white;margin:0">DBGuard</h1>
+        </div>
+        <div style="background:#f8fafc;padding:20px;border-radius:0 0 8px 8px;border:1px solid #e2e8f0">
+          <h2 style="color:#1e293b">Olá, ${name}!</h2>
+          <p style="color:#dc2626">Seu plano <strong>${plan}</strong> vence em 3 dias (${expiresDate}).</p>
+          <p style="color:#475569">Para não perder acesso aos seus backups, realize o pagamento antes dessa data.</p>
+          <p style="color:#0f766e">Após o vencimento, você terá um período de graça de 3 dias para regularizar o pagamento.</p>
+          <a href="${process.env.APP_URL}/billing" style="display:inline-block;margin-top:20px;background:#ea580c;color:white;padding:12px 24px;border-radius:6px;text-decoration:none">
+            Renovar Plano
+          </a>
+        </div>
+      </div>
+    `
+  });
+}
+
+async function notifyPlanExpired(data) {
+  const { email, name } = data;
+
+  await sendEmail({
+    to: email,
+    subject: '🚫 DBGuard — Sua conta foi inativada',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+        <div style="background:#dc2626;padding:20px;border-radius:8px 8px 0 0">
+          <h1 style="color:white;margin:0">DBGuard</h1>
+        </div>
+        <div style="background:#f8fafc;padding:20px;border-radius:0 0 8px 8px;border:1px solid #e2e8f0">
+          <h2 style="color:#1e293b">Olá, ${name}!</h2>
+          <p style="color:#dc2626">Sua conta foi <strong>inativada</strong> devido ao vencimento do plano.</p>
+          <p style="color:#475569">Seus dados estão seguros e armazenados no OCI Object Storage.</p>
+          <p style="color:#0f766e">Para reativar sua conta, entre em contato com o suporte ou renove seu plano.</p>
+          <a href="${process.env.APP_URL}/contact-support" style="display:inline-block;margin-top:20px;background:#dc2626;color:white;padding:12px 24px;border-radius:6px;text-decoration:none">
+            Contatar Suporte
+          </a>
+        </div>
+      </div>
+    `
+  });
+}
+
+module.exports = { sendEmail, notifyNewClient, notifyClientApproved, notifyPlanExpiring, notifyPlanExpired };

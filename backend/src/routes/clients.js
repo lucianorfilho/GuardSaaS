@@ -108,11 +108,80 @@ router.post('/:id/approve', auth, admin, async (req, res) => {
 router.post('/:id/suspend', auth, admin, async (req, res) => {
   try {
     await execute(
-      "UPDATE dbguard_users SET status = 'suspended' WHERE id = ? AND role = 'client'",
+      "UPDATE dbguard_users SET status = 'inactive' WHERE id = ? AND role = 'client'",
       [req.params.id]
     );
-    res.json({ message: 'Cliente suspenso' });
+    res.json({ message: 'Cliente inativado' });
   } catch (err) {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+// Reativar cliente
+router.post('/:id/reactivate', auth, admin, async (req, res) => {
+  try {
+    await execute(
+      "UPDATE dbguard_users SET status = 'active' WHERE id = ? AND role = 'client'",
+      [req.params.id]
+    );
+    res.json({ message: 'Cliente reativado' });
+  } catch (err) {
+    res.status(500).json({ error: 'Erro interno' });
+  }
+});
+
+// Alterar plano do cliente
+router.put('/:id/plan', auth, admin, async (req, res) => {
+  const { plan_id, expires_at } = req.body;
+  if (!plan_id) return res.status(400).json({ error: 'ID do plano obrigatório' });
+
+  try {
+    // Validar se o plano existe
+    const { rows: planRows } = await execute(
+      'SELECT id, name FROM dbguard_plans WHERE id = ?', [plan_id]
+    );
+    if (!planRows.length) return res.status(404).json({ error: 'Plano não encontrado' });
+
+    // Validar se o cliente existe
+    const { rows: clientRows } = await execute(
+      'SELECT id FROM dbguard_users WHERE id = ? AND role = ?', [req.params.id, 'client']
+    );
+    if (!clientRows.length) return res.status(404).json({ error: 'Cliente não encontrado' });
+
+    // Buscar assinatura ativa
+    const { rows: subscriptionRows } = await execute(
+      'SELECT id FROM dbguard_subscriptions WHERE user_id = ? AND status = ?',
+      [req.params.id, 'active']
+    );
+
+    if (subscriptionRows.length) {
+      // Atualizar assinatura existente
+      await execute(
+        `UPDATE dbguard_subscriptions
+         SET plan_id = ?, expires_at = ?, warned_at = NULL
+         WHERE user_id = ? AND status = 'active'`,
+        [plan_id, expires_at || null, req.params.id]
+      );
+    } else {
+      // Criar nova assinatura se não existir
+      await execute(
+        `INSERT INTO dbguard_subscriptions (user_id, plan_id, status, expires_at)
+         VALUES (?, ?, 'active', ?)`,
+        [req.params.id, plan_id, expires_at || null]
+      );
+    }
+
+    // Registrar na auditoria
+    await execute(
+      `INSERT INTO dbguard_audit_logs (user_id, event_type, ip_address, description, metadata)
+       VALUES (?, 'plan_change', ?, ?, ?)`,
+      [req.params.id, req.ip, `Plano alterado para ${planRows[0].name}`,
+       JSON.stringify({ plan_id, new_plan_name: planRows[0].name, expires_at })]
+    );
+
+    res.json({ message: 'Plano alterado com sucesso', plan: planRows[0].name, expires_at });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Erro interno' });
   }
 });

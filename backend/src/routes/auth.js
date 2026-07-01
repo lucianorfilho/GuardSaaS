@@ -21,11 +21,11 @@ router.post('/login', async (req, res) => {
 
     const user = rows[0];
 
-    if (user.status === 'inactive')
-      return res.status(403).json({ error: 'Conta aguardando aprovação do administrador' });
+    if (user.status === 'pending')
+      return res.status(403).json({ error: 'Conta aguardando aprovação do administrador. Verifique seu email para atualizações.' });
 
-    if (user.status === 'suspended')
-      return res.status(403).json({ error: 'Conta suspensa. Entre em contato com o suporte' });
+    if (user.status === 'inactive')
+      return res.status(403).json({ error: 'Conta inativada. Entre em contato com o administrador.' });
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid)
@@ -59,7 +59,7 @@ router.post('/register', async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     await execute(
       `INSERT INTO dbguard_users (name, email, password_hash, phone, company, status, role)
-       VALUES (?, ?, ?, ?, ?, 'inactive', 'client')`,
+       VALUES (?, ?, ?, ?, ?, 'pending', 'client')`,
       [name, email, hash, phone || null, company || null]
     );
 
