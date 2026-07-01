@@ -1,9 +1,8 @@
 const rateLimit = require('express-rate-limit');
 const logger = require('../config/logger');
 
-// Normaliza IP removendo prefixo IPv6
 function getIP(req) {
-  const ip = req.ip || req.connection.remoteAddress || '';
+  const ip = req.ip || req.connection?.remoteAddress || '';
   return ip.replace(/^::ffff:/, '');
 }
 
@@ -26,7 +25,7 @@ const loginLimiter = rateLimit({
   keyGenerator: getIP,
   message: { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' },
   handler: (req, res, next, options) => {
-    logger.warn('Tentativas excessivas de login', { ip: getIP(req), email: req.body?.email });
+    logger.warn('Tentativas excessivas de login', { ip: getIP(req) });
     res.status(429).json(options.message);
   }
 });
@@ -35,9 +34,9 @@ const passwordLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 5,
   keyGenerator: getIP,
-  message: { error: 'Muitas solicitações de recuperação. Tente novamente em 1 hora.' },
+  message: { error: 'Muitas solicitações. Tente novamente em 1 hora.' },
   handler: (req, res, next, options) => {
-    logger.warn('Tentativas excessivas de recuperação de senha', { ip: getIP(req) });
+    logger.warn('Tentativas excessivas de recuperação', { ip: getIP(req) });
     res.status(429).json(options.message);
   }
 });
@@ -45,10 +44,13 @@ const passwordLimiter = rateLimit({
 const agentLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 30,
-  keyGenerator: (req) => req.body?.token || req.params?.token || getIP(req),
+  keyGenerator: (req) => {
+    const token = req.body?.token || req.params?.token;
+    return token ? token.substring(0, 16) : getIP(req);
+  },
   message: { error: 'Muitas requisições do agente.' },
   handler: (req, res, next, options) => {
-    logger.warn('Rate limit do agente atingido', { ip: getIP(req) });
+    logger.warn('Rate limit agente', { ip: getIP(req) });
     res.status(429).json(options.message);
   }
 });

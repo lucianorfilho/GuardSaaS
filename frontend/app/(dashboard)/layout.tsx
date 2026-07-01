@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Server, Archive, Bell, Users, LogOut, Menu, Shield, Clock, Download } from 'lucide-react';
+import { LayoutDashboard, Server, Archive, Bell, Users, LogOut, Menu, Shield, Clock, Download, HardDrive } from 'lucide-react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -25,20 +25,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const clientNav = [
-    { href: '/dashboard',  label: 'Dashboard',    icon: LayoutDashboard },
-    { href: '/servers',    label: 'Servidores',   icon: Server },
-    { href: '/schedules',  label: 'Agendamentos', icon: Clock },
-    { href: '/backups',    label: 'Backups',       icon: Archive },
-    { href: '/alerts',     label: 'Alertas',       icon: Bell },
+    { href: '/dashboard',  label: 'Dashboard',      icon: LayoutDashboard },
+    { href: '/servers',    label: 'Servidores',     icon: Server },
+    { href: '/schedules',  label: 'Agendamentos',   icon: Clock },
+    { href: '/backups',    label: 'Backups',         icon: Archive },
+    { href: '/storage',    label: 'Storage',         icon: HardDrive },
+    { href: '/alerts',     label: 'Alertas',         icon: Bell },
     { href: '/download',   label: 'Download Agente', icon: Download },
   ];
 
   const adminNav = [
-    { href: '/dashboard',  label: 'Dashboard',    icon: LayoutDashboard },
-    { href: '/servers',    label: 'Servidores',   icon: Server },
-    { href: '/backups',    label: 'Backups',       icon: Archive },
-    { href: '/alerts',     label: 'Alertas',       icon: Bell },
-    { href: '/admin',      label: 'Admin',         icon: Users },
+    { href: '/dashboard',  label: 'Dashboard',   icon: LayoutDashboard },
+    { href: '/servers',    label: 'Servidores',  icon: Server },
+    { href: '/backups',    label: 'Backups',      icon: Archive },
+    { href: '/alerts',     label: 'Alertas',      icon: Bell },
+    { href: '/admin',      label: 'Admin',        icon: Users },
   ];
 
   const navItems = user?.role === 'admin' ? adminNav : clientNav;
